@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 open-worldmap contributors - https://github.com/bogus-accnt/open-worldmap
 // CountryPanel — details + JSON record editor for the selected country.
 import { COUNTRIES } from "./countries-db.js";
 

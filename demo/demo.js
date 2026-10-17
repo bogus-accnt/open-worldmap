@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 open-worldmap contributors - https://github.com/bogus-accnt/open-worldmap
 // Demo wiring: dataset switching, theme toggle, records table, events.
 import { WorldMapModule } from "../src/worldmap-module.js";
 import { CountryStore, localStorageAdapter } from "../src/country-store.js";

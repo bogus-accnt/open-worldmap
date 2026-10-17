@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 open-worldmap contributors - https://github.com/bogus-accnt/open-worldmap
 // WorldMapModule — embeddable "organize data by country" widget.
 //
 //   import { WorldMapModule } from "./src/worldmap-module.js";

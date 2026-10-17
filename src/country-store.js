@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 open-worldmap contributors - https://github.com/bogus-accnt/open-worldmap
 // CountryStore — the data layer of the worldmap module.
 // Arbitrary JSON records keyed by ISO 3166-1 alpha-2 codes, with change
 // events, JSON import/export and pluggable persistence adapters.

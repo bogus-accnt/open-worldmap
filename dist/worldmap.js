@@ -1,3 +1,4 @@
+/*! open-worldmap | MIT License | https://github.com/bogus-accnt/open-worldmap */
 (() => {
   // src/countries-db.js
   var COUNTRIES = {

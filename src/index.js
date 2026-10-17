@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 open-worldmap contributors - https://github.com/bogus-accnt/open-worldmap
 // Public entry point for the worldmap module.
 //
 //   import { WorldMapModule, CountryStore } from "./src/index.js";

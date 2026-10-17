@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 open-worldmap contributors - https://github.com/bogus-accnt/open-worldmap
 // MapRenderer — SVG world map with zoom/pan, hover, selection and dimming.
 import { WORLD_PATHS, MAP_WIDTH, MAP_HEIGHT } from "../assets/world-paths.js";
 

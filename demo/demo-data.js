@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 open-worldmap contributors - https://github.com/bogus-accnt/open-worldmap
 // Sample datasets for the demo. Any JSON works as a record — these just
 // happen to be numbers (population, revenue) and strings (status).
 

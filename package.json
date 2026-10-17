@@ -11,7 +11,7 @@
   },
   "files": ["src", "assets", "dist"],
   "scripts": {
-    "build": "npx --yes esbuild@0.25.10 src/index.js --bundle --format=iife --target=es2020 --outfile=dist/worldmap.js && npx --yes esbuild@0.25.10 src/index.js --bundle --format=iife --minify --target=es2020 --outfile=dist/worldmap.min.js",
+    "build": "npx --yes esbuild@0.25.10 src/index.js --bundle --format=iife --target=es2020 --banner:js=\"/*! open-worldmap | MIT License | https://github.com/bogus-accnt/open-worldmap */\" --outfile=dist/worldmap.js && npx --yes esbuild@0.25.10 src/index.js --bundle --format=iife --minify --target=es2020 --banner:js=\"/*! open-worldmap | MIT License | https://github.com/bogus-accnt/open-worldmap */\" --outfile=dist/worldmap.min.js",
     "build:map": "node tools/generate-map.mjs",
     "check:map": "node tools/check-map.mjs",
     "build:db": "node tools/generate-db.mjs",

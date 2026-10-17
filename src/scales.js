@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 open-worldmap contributors - https://github.com/bogus-accnt/open-worldmap
 // Color scales for the choropleth.
 
 export const SEQUENTIAL_BLUES = ["#f7fbff", "#c6dbef", "#6baed6", "#2171b5", "#08306b"];

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 open-worldmap contributors - https://github.com/bogus-accnt/open-worldmap
 // Static + geometric sanity checks for assets/world-paths.js
 //
 //  * static: no subpath may contain a horizontal jump wider than a third of

@@ -248,4 +248,5 @@ dist/                  prebuilt bundles
 
 ## License
 
-MIT — see [LICENSE](LICENSE). The bundled data keeps the license of its source (above).
+MIT — see [LICENSE](LICENSE). Every source file carries an `SPDX-License-Identifier: MIT`
+header. The bundled data keeps the license of its source (above).

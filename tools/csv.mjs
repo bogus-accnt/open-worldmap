@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 open-worldmap contributors - https://github.com/bogus-accnt/open-worldmap
 // Minimal RFC-4180-ish CSV parser (handles quoted fields with commas/quotes).
 export function parseCSV(text) {
   const rows = [];

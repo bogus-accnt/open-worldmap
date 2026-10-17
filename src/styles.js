@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 open-worldmap contributors - https://github.com/bogus-accnt/open-worldmap
 // Stylesheet for the worldmap module. Injected once into the host document.
 // All visuals are driven by the CSS variables below, so a host can re-theme
 // the widget by overriding them (e.g. `#my-map .wm-root { --wm-accent: ... }`).
