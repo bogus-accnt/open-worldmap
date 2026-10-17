@@ -91,7 +91,11 @@ export class CountryPanel {
         <div class="wm-field-label">Record (JSON)</div>
         <textarea class="wm-json" spellcheck="false"></textarea>
         <div class="wm-status"></div>
-        <div class="wm-hint">Anything JSON-serializable works — an object, array, number or string.</div>
+        ${
+          hasRecord
+            ? `<div class="wm-hint">Anything JSON-serializable works — an object, array, number or string.</div>`
+            : `<div class="wm-hint wm-no-record">No record for this country yet — press Save to create one. Data must be keyed by ISO codes ("DE"), not country names.</div>`
+        }
       </div>
       <div class="wm-panel-actions">
         <button class="wm-btn wm-primary" data-action="save">Save</button>

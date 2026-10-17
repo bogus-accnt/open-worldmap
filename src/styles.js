@@ -223,6 +223,14 @@ export const CSS = `
 .wm-json:focus { border-color: var(--wm-accent); }
 .wm-json.wm-invalid { border-color: var(--wm-danger); }
 .wm-hint { font-size: 12px; color: var(--wm-muted); }
+.wm-no-record {
+  margin-top: 2px;
+  padding: 8px 10px;
+  border: 1px dashed var(--wm-border);
+  border-radius: 8px;
+  background: var(--wm-hover-bg);
+  color: var(--wm-fg);
+}
 .wm-status { font-size: 12px; min-height: 16px; color: var(--wm-muted); }
 .wm-status.wm-error { color: var(--wm-danger); }
 .wm-status.wm-ok { color: #2e8b57; }

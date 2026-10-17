@@ -84,8 +84,178 @@ map.importJSON(other, { merge: true }); // merge instead of replace
 map.exportToFile("my-data.json");       // download in the browser
 ```
 
-Plain maps (`{ "US": {...} }`) are accepted too. Unknown codes are skipped.
+Plain maps (`{ "US": {...} }`) are accepted too. Unknown codes are skipped with a
+`console.warn` (see [key rules](#load-a-json-payload-for-all-countries)).
 The toolbar's **Import**/**Export** buttons do the same thing.
+
+## Loading data & reading it back
+
+### Load a JSON payload for all countries
+
+The usual case is one payload keyed by country code. Hand it to the store directly — either at
+construction time or at any later moment:
+
+```js
+// { "DE": {...}, "FR": [...], "US": 42 } — any JSON per country
+const dataByCountry = await (await fetch("/api/radio-stations.json")).json();
+
+const store = new CountryStore({ initialData: dataByCountry });
+
+const map = new WorldMapModule({
+  el: "#map",
+  store,
+  colorBy: (record) => (Array.isArray(record) ? record.length : null), // arrays need a function
+  valueLabel: "Radio stations",
+  colors: "blues",
+  scaleMode: "quantile",
+});
+```
+
+Loading or replacing data later works the same way, through the store or the widget:
+
+```js
+map.importJSON(dataByCountry);           // replaces every record
+map.importJSON(more, { merge: true });   // adds/overwrites only the listed countries
+store.set("DE", [ /* … */ ]);            // one country at a time (alpha-3 works too)
+store.clear();                           // drop everything
+```
+
+`importJSON()` accepts both the export format `{ "records": { "DE": … } }` and a bare
+`{ "DE": … }` map. `initialData` takes a **bare map only** — handed an export envelope it loads
+nothing (silently), so use `importJSON()` for envelopes.
+
+**Countries are keyed by ISO 3166-1 alpha-2.** Alpha-3 and any case are accepted; every other
+key is skipped and **logged with a `console.warn`** naming it (silence it with
+`onUnknownKey: () => {}`) — a drop like that is the number one reason a click shows no data:
+
+```js
+new CountryStore({ initialData: { DE: 1, de: 2, "  de  ": 3, DEU: 4 } }); // → one record, "DE"
+
+new CountryStore({ initialData: {
+  Germany:  {},   // country name, not a code
+  "276":    {},   // numeric code
+  UK:       {},   // not an ISO code — the United Kingdom is GB
+  EL:       {},   // not an ISO code — Greece is GR
+} });             // → nothing loaded
+```
+
+`initialData` is applied **on top of** previously persisted records: it wins for the codes it
+contains, while other saved countries stay. To always start from your own payload regardless of
+what a `localStorageAdapter` holds, pass it to `importJSON()` (replaces everything) or use
+`memoryAdapter`.
+
+### Get the data back on a country click
+
+A click does **not** hand you the record: you receive the country **code** and fetch the record
+yourself. Two equivalent ways to be notified:
+
+```js
+// a) callback in the options
+const map = new WorldMapModule({
+  el: "#map",
+  store,
+  onSelect: (code) => render(code ? store.get(code) : null),   // null = clicked the ocean
+});
+
+// b) event on the widget root (or on the container — it bubbles)
+map.root.addEventListener("wm:select", (e) => {
+  render(e.detail.code ? store.get(e.detail.code) : null);
+});
+```
+
+`store.get(code)` returns exactly the value you stored (object, array, string, number…) and
+accepts an alpha-3 code. Handy neighbours:
+
+```js
+map.getSelected();                    // "DE" | null
+store.has("DE");
+store.entries();                      // [["DE", record], …]
+store.query({ region: "Europe" });    // [{ code, name, region, record }, …]
+
+import { COUNTRIES } from "./src/index.js";
+COUNTRIES.DE;                         // { name, alpha3, numeric, region, subregion, … }
+```
+
+> **Click shows no data in the panel?** The click works — the record simply never reached the
+> store, and the panel shows its empty template. Verify in this order:
+> 1. `store.size` / `store.codes()` right after loading — empty means the payload was rejected
+>    (see the key rules above); the console also warns about every skipped key.
+> 2. Non-ISO keys that look right: `"Germany"`, `"276"`, `"UK"` (→ `GB`), `"EL"` (→ `GR`).
+> 3. An export envelope `{ "records": { … } }` handed to `initialData` instead of `importJSON()`.
+> 4. `panel: false` — then there is no right-hand panel at all (the map still highlights).
+
+### Worked example — filter a table by the clicked country
+
+Say each country holds a list of radio stations (`{ id, name, topic, working, lastChecked }`).
+Clicking a country filters the table; your own controls combine with it, and clicking a row
+selects the country back on the map:
+
+```js
+const state = { country: null, topic: "all", working: "all" };
+const tbody = document.querySelector("#stations tbody");
+
+function renderTable() {
+  const pairs = state.country ? [[state.country, store.get(state.country)]] : store.entries();
+  const rows = [];
+  for (const [code, value] of pairs) {
+    const list = Array.isArray(value) ? value : value ? [value] : [];
+    for (const s of list) rows.push({ ...s, country: code });
+  }
+
+  tbody.innerHTML = rows
+    .filter((s) => state.topic === "all" || s.topic === state.topic)
+    .filter((s) => state.working === "all" || String(s.working) === state.working)
+    .map((s) => `<tr data-country="${s.country}">
+        <td>${s.country}</td><td>${s.name}</td><td>${s.topic}</td>
+        <td>${s.working ? "on air" : "off air"}</td><td>${s.lastChecked}</td>
+      </tr>`)
+    .join("");
+}
+
+// map → table
+map.root.addEventListener("wm:select", (e) => {
+  state.country = e.detail.code;
+  renderTable();
+});
+
+// table → map
+tbody.addEventListener("click", (e) => {
+  const row = e.target.closest("tr[data-country]");
+  if (row) map.select(row.dataset.country, { focus: true });
+});
+
+// your own filters combine with the selected country
+document.querySelector("#topic").addEventListener("change", (e) => {
+  state.topic = e.target.value;
+  renderTable();
+});
+document.querySelector("#working").addEventListener("change", (e) => {
+  state.working = e.target.value;
+  renderTable();
+});
+
+// re-render when the data changes anywhere (panel edits, import, your own code)
+store.subscribe(renderTable);
+renderTable();
+```
+
+Points worth knowing before you wire this up:
+
+* Records are **one per country**. If your source is a flat list of rows, either store the array
+  as the country's record (as above) or keep your own index and put only an aggregate
+  (e.g. `{ stations: 12, working: 9 }`) in the store for the choropleth.
+* A **string `colorBy` does not look inside arrays** — `Array.isArray` records resolve to
+  `undefined` and the country stays grey. Use a function:
+  `colorBy: (r) => (Array.isArray(r) ? r.length : null)`.
+* Returning `null`/`undefined` from `colorBy` paints the country with the "no record" color.
+* Selection is **single-country**: clicking another country replaces the previous one. For
+  multi-select keep your own `Set` of codes and filter by it; the map highlight still shows
+  only the last one.
+* Dates in `YYYY-MM-DD` compare correctly as strings, so `s.lastChecked < "2026-09-01"` needs
+  no date parser.
+* The built-in panel (disable with `panel: false`) shows and edits the whole record as JSON,
+  which is convenient for small records and unwieldy for long arrays — a custom table is
+  usually nicer for those.
 
 ## `WorldMapModule` options
 
@@ -104,7 +274,7 @@ The toolbar's **Import**/**Export** buttons do the same thing.
 | `regionFilter` | `true` | Show the region filter. |
 | `importExport` | `true` | Show Import/Export buttons. |
 | `theme` | `null` | `"light"`, `"dark"` or `null`. |
-| `onSelect` | — | `(code, map) => void` when a country is selected/deselected. |
+| `onSelect` | — | `(code) => void` when a country is selected or deselected (`null` = deselected). |
 
 ### Methods
 
@@ -134,7 +304,7 @@ document.querySelector("#map").addEventListener("wm:select", (e) => {
 ## `CountryStore`
 
 ```js
-new CountryStore({ storage, initialData });
+new CountryStore({ storage, initialData, onUnknownKey });
 
 store.get("US")            // record or undefined
 store.has("US")
@@ -143,6 +313,7 @@ store.update("US", patch)  // shallow merge
 store.delete("US")
 store.clear()
 store.size
+store.codes()              // ["DE", "FR", …] — every code that has a record
 store.entries()            // [[code, record], …]
 store.query({ text, region })  // [{ code, name, region, record }, …]
 store.subscribe((event, store) => {})  // → unsubscribe
@@ -170,6 +341,10 @@ normalizeCode("deu");          // "DE"
 listCountries({ region: "Asia", text: "ind" });
 COUNTRIES.DE;                  // { alpha2, alpha3, numeric, name, region, subregion, independent }
 ```
+
+These are **ES-module exports**. The classic `<script>` build exposes only `WorldMapModule`,
+`CountryStore`, `localStorageAdapter`, `memoryAdapter` and `createColorScale` on
+`window.WorldMap` — use the module build when you need the country helpers.
 
 ## Theming
 

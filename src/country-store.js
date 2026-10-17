@@ -9,13 +9,21 @@ export class CountryStore {
   /**
    * @param {object} [options]
    * @param {{read: () => object|null, write: (data: object) => void}} [options.storage]
-   *   Persistence adapter. Data on disk always wins over `initialData`.
+   *   Persistence adapter. Saved records are loaded first, then `initialData` is applied on
+   *   top of them — so `initialData` wins for the codes it contains, and other saved
+   *   countries stay.
    * @param {object} [options.initialData]  Seed records: { "US": {...}, ... }
+   * @param {(code: string, source: "initialData"|"importJSON") => void} [options.onUnknownKey]
+   *   Called for every key that is not a valid country code. Defaults to a `console.warn`,
+   *   so a mistyped or non-ISO key is never dropped silently. Pass a no-op function to
+   *   silence it.
    */
-  constructor({ storage = null, initialData = null } = {}) {
+  constructor({ storage = null, initialData = null, onUnknownKey } = {}) {
     this._data = {};
     this._listeners = new Set();
     this._storage = storage || null;
+    this._onUnknownKey =
+      onUnknownKey === undefined ? CountryStore.warnUnknownKey : onUnknownKey || (() => {});
 
     const persisted = this._storage ? this._storage.read() : null;
     if (persisted && typeof persisted === "object") {
@@ -25,8 +33,18 @@ export class CountryStore {
       for (const [code, record] of Object.entries(initialData)) {
         const c = normalizeCode(code);
         if (c) this._data[c] = record;
+        else this._onUnknownKey(code, "initialData");
       }
     }
+  }
+
+  /** Default `onUnknownKey` handler: warn once per skipped key. */
+  static warnUnknownKey(code, source) {
+    console.warn(
+      `[worldmap-module] Skipped unknown country code ${JSON.stringify(code)} in ${source}. ` +
+        'Expected an ISO 3166-1 alpha-2 code (alpha-3 and any case are accepted too) — ' +
+        'use "DE", not "Germany".'
+    );
   }
 
   /** Number of records. */
@@ -138,14 +156,19 @@ export class CountryStore {
     }
     if (!merge) this._data = {};
     let imported = 0;
+    const skipped = [];
     for (const [code, record] of Object.entries(source)) {
       const c = normalizeCode(code);
-      if (!c) continue; // silently skip unknown codes
+      if (!c) {
+        skipped.push(code);
+        continue;
+      }
       this._data[c] = record;
       imported++;
     }
+    for (const code of skipped) this._onUnknownKey(code, "importJSON");
     this._persist();
-    this._emit({ type: "import", imported });
+    this._emit({ type: "import", imported, skipped: skipped.length });
     return imported;
   }
 

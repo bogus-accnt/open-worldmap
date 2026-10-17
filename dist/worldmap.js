@@ -286,17 +286,25 @@
   }
 
   // src/country-store.js
-  var CountryStore = class {
+  var CountryStore = class _CountryStore {
     /**
      * @param {object} [options]
      * @param {{read: () => object|null, write: (data: object) => void}} [options.storage]
-     *   Persistence adapter. Data on disk always wins over `initialData`.
+     *   Persistence adapter. Saved records are loaded first, then `initialData` is applied on
+     *   top of them — so `initialData` wins for the codes it contains, and other saved
+     *   countries stay.
      * @param {object} [options.initialData]  Seed records: { "US": {...}, ... }
+     * @param {(code: string, source: "initialData"|"importJSON") => void} [options.onUnknownKey]
+     *   Called for every key that is not a valid country code. Defaults to a `console.warn`,
+     *   so a mistyped or non-ISO key is never dropped silently. Pass a no-op function to
+     *   silence it.
      */
-    constructor({ storage = null, initialData = null } = {}) {
+    constructor({ storage = null, initialData = null, onUnknownKey } = {}) {
       this._data = {};
       this._listeners = /* @__PURE__ */ new Set();
       this._storage = storage || null;
+      this._onUnknownKey = onUnknownKey === void 0 ? _CountryStore.warnUnknownKey : onUnknownKey || (() => {
+      });
       const persisted = this._storage ? this._storage.read() : null;
       if (persisted && typeof persisted === "object") {
         this._data = { ...persisted };
@@ -305,8 +313,15 @@
         for (const [code, record] of Object.entries(initialData)) {
           const c = normalizeCode(code);
           if (c) this._data[c] = record;
+          else this._onUnknownKey(code, "initialData");
         }
       }
+    }
+    /** Default `onUnknownKey` handler: warn once per skipped key. */
+    static warnUnknownKey(code, source) {
+      console.warn(
+        `[worldmap-module] Skipped unknown country code ${JSON.stringify(code)} in ${source}. Expected an ISO 3166-1 alpha-2 code (alpha-3 and any case are accepted too) \u2014 use "DE", not "Germany".`
+      );
     }
     /** Number of records. */
     get size() {
@@ -394,14 +409,19 @@
       }
       if (!merge) this._data = {};
       let imported = 0;
+      const skipped = [];
       for (const [code, record] of Object.entries(source)) {
         const c = normalizeCode(code);
-        if (!c) continue;
+        if (!c) {
+          skipped.push(code);
+          continue;
+        }
         this._data[c] = record;
         imported++;
       }
+      for (const code of skipped) this._onUnknownKey(code, "importJSON");
       this._persist();
-      this._emit({ type: "import", imported });
+      this._emit({ type: "import", imported, skipped: skipped.length });
       return imported;
     }
     /** Export the whole store: { version, exportedAt, records }. */
@@ -946,7 +966,7 @@
         <div class="wm-field-label">Record (JSON)</div>
         <textarea class="wm-json" spellcheck="false"></textarea>
         <div class="wm-status"></div>
-        <div class="wm-hint">Anything JSON-serializable works \u2014 an object, array, number or string.</div>
+        ${hasRecord ? `<div class="wm-hint">Anything JSON-serializable works \u2014 an object, array, number or string.</div>` : `<div class="wm-hint wm-no-record">No record for this country yet \u2014 press Save to create one. Data must be keyed by ISO codes ("DE"), not country names.</div>`}
       </div>
       <div class="wm-panel-actions">
         <button class="wm-btn wm-primary" data-action="save">Save</button>
@@ -1350,6 +1370,14 @@
 .wm-json:focus { border-color: var(--wm-accent); }
 .wm-json.wm-invalid { border-color: var(--wm-danger); }
 .wm-hint { font-size: 12px; color: var(--wm-muted); }
+.wm-no-record {
+  margin-top: 2px;
+  padding: 8px 10px;
+  border: 1px dashed var(--wm-border);
+  border-radius: 8px;
+  background: var(--wm-hover-bg);
+  color: var(--wm-fg);
+}
 .wm-status { font-size: 12px; min-height: 16px; color: var(--wm-muted); }
 .wm-status.wm-error { color: var(--wm-danger); }
 .wm-status.wm-ok { color: #2e8b57; }
