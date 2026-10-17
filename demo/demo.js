@@ -46,17 +46,51 @@ const wm = new WorldMapModule({
 });
 
 const $ = (sel) => document.querySelector(sel);
+const DATASET_KEY = "worldmap-demo:dataset";
 let current = "population";
 
-function applyDataset(key) {
-  current = key;
+/** True if at least one stored record has the dataset's colorBy field. */
+function datasetMatchesStore(key) {
+  const field = DATASETS[key].colorBy;
+  return store.entries().some(([, r]) => r && typeof r === "object" && !Array.isArray(r) && r[field] !== undefined);
+}
+
+/** Pick the dataset whose field is present in the stored records. */
+function detectDataset() {
+  return Object.keys(DATASETS).find(datasetMatchesStore) || null;
+}
+
+/** Apply colours/legend for a dataset WITHOUT touching the stored records. */
+function styleDataset(key) {
   const ds = DATASETS[key];
-  store.importJSON({ records: ds.data });
+  current = key;
+  $("#dataset").value = key;
+  $("#scale-mode").value = ds.scaleMode;
   wm.options.valueLabel = ds.valueLabel;
   wm.setColorBy(ds.colorBy, { colors: ds.colors, scaleMode: ds.scaleMode });
+  try {
+    localStorage.setItem(DATASET_KEY, key);
+  } catch {
+    /* storage unavailable — not fatal */
+  }
+  updateStats();
+}
+
+/** Load the sample data for a dataset (replaces every record). */
+function applyDataset(key) {
+  store.importJSON({ records: DATASETS[key].data });
+  styleDataset(key);
   wm.fitAll();
   wm.clearSelection();
-  $("#scale-mode").value = ds.scaleMode;
+}
+
+/** On-page diagnostic so a grey map is never a mystery. */
+function updateStats() {
+  const total = document.querySelectorAll(".wm-country").length;
+  const colored = document.querySelectorAll(".wm-country:not(.wm-nodata)").length;
+  const label = DATASETS[current]?.valueLabel || "—";
+  const warn = colored === 0 && store.size > 0 ? " ⚠ nothing is colored" : "";
+  $("#map-stats").textContent = `${store.size} records · ${colored}/${total} colored · by ${label}${warn}`;
 }
 
 // --- Controls -----------------------------------------------------------
@@ -109,7 +143,10 @@ $("#records").addEventListener("click", (e) => {
   if (row) wm.select(row.dataset.code, { focus: true });
 });
 
-store.subscribe(() => renderTable());
+store.subscribe(() => {
+  renderTable();
+  updateStats();
+});
 
 // --- Selection readout --------------------------------------------------
 
@@ -138,12 +175,27 @@ function escapeHtml(s) {
 }
 
 // On first visit, seed the sample dataset. On later visits, keep whatever the
-// user saved in localStorage (use "Reset demo data" to restore the samples).
+// user saved in localStorage (use "Reset demo data" to restore the samples) —
+// but make sure the legend/colours match the records that are actually stored.
 if (store.size === 0) {
-  applyDataset("population");
+  let key = "population";
+  try {
+    const saved = localStorage.getItem(DATASET_KEY);
+    if (saved && DATASETS[saved]) key = saved;
+  } catch {
+    /* ignore */
+  }
+  applyDataset(key);
 } else {
-  wm.options.valueLabel = "People";
-  wm.setColorBy("population", { colors: "blues", scaleMode: "quantile" });
+  let key = null;
+  try {
+    const saved = localStorage.getItem(DATASET_KEY);
+    if (saved && DATASETS[saved] && datasetMatchesStore(saved)) key = saved;
+  } catch {
+    /* ignore */
+  }
+  styleDataset(key || detectDataset() || "population");
 }
 renderTable();
+updateStats();
 window.wm = wm; // handy for poking around in the console

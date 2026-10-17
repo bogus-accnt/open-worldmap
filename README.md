@@ -45,7 +45,9 @@ Serve the folder over HTTP (ES modules don't load from `file://`):
 
 ```bash
 npm run serve      # python -m http.server 8123
-# open http://127.0.0.1:8123/demo/
+# open http://127.0.0.1:8123/            (landing page with all examples)
+#      http://127.0.0.1:8123/demo/       (full demo)
+#      http://127.0.0.1:8123/demo/radio.html  (records are arrays: shaded by count)
 ```
 
 ### Classic `<script>` (no modules)
@@ -183,12 +185,40 @@ COUNTRIES.DE;                         // { name, alpha3, numeric, region, subreg
 > 2. Non-ISO keys that look right: `"Germany"`, `"276"`, `"UK"` (→ `GB`), `"EL"` (→ `GR`).
 > 3. An export envelope `{ "records": { … } }` handed to `initialData` instead of `importJSON()`.
 > 4. `panel: false` — then there is no right-hand panel at all (the map still highlights).
+> 5. The map being **entirely grey** while records exist means `colorBy` matched nothing (see
+>    above) — that does not affect the panel, but it hides which countries have data.
 
-### Worked example — filter a table by the clicked country
+### Worked example — colour by the number of records
 
-Say each country holds a list of radio stations (`{ id, name, topic, working, lastChecked }`).
-Clicking a country filters the table; your own controls combine with it, and clicking a row
-selects the country back on the map:
+Say each country holds a list of radio stations (`{ id, name, topic, working, lastChecked }`)
+and you want the map shaded by **how many** each one has. A string `colorBy` cannot read inside
+an array, so pass a function:
+
+```js
+const map = new WorldMapModule({
+  el: "#map",
+  store,
+  colorBy: (records) => (Array.isArray(records) ? records.length : null), // number of records
+  colors: "blues",
+  scaleMode: "quantile",        // "linear" also reads well for counts
+  valueLabel: "Stations",
+});
+```
+
+`null` (no record at all) and `0` (recorded, but empty) are different states: `null` paints the
+country with the "no record" colour, `0` gets a real colour from the scale. If a country's record
+is an object rather than an array, adapt the function — `(r) => r.stations?.length ?? null`.
+
+If your source is a **flat list** of rows, group it by country first (keys must be ISO codes):
+
+```js
+const byCountry = {};
+for (const s of stations) (byCountry[s.country] ??= []).push(s);
+store.importJSON(byCountry);        // each country now holds its own array
+```
+
+Now the table under the map — clicking a country filters it, your own controls combine with the
+selection, and clicking a row selects the country back on the map:
 
 ```js
 const state = { country: null, topic: "all", working: "all" };
@@ -245,8 +275,10 @@ Points worth knowing before you wire this up:
   as the country's record (as above) or keep your own index and put only an aggregate
   (e.g. `{ stations: 12, working: 9 }`) in the store for the choropleth.
 * A **string `colorBy` does not look inside arrays** — `Array.isArray` records resolve to
-  `undefined` and the country stays grey. Use a function:
-  `colorBy: (r) => (Array.isArray(r) ? r.length : null)`.
+  `undefined` and the country stays grey. Use a function, as above.
+* If a `colorBy` field matches **no** record at all, the whole map goes grey — the module logs a
+  `console.warn` (`colorBy "population" matched none of the 46 records`) so it is not silent.
+  A legend label that does not match your data is the symptom to watch for.
 * Returning `null`/`undefined` from `colorBy` paints the country with the "no record" color.
 * Selection is **single-country**: clicking another country replaces the previous one. For
   multi-select keep your own `Set` of codes and filter by it; the map highlight still shows
@@ -388,6 +420,7 @@ npm run build:db    # node tools/generate-db.mjs    — ISO 3166-1 metadata
 ## Project layout
 
 ```
+index.html             landing page linking the examples
 src/
   index.js             public entry (also sets window.WorldMap)
   worldmap-module.js   the widget: toolbar, map, panel, legend, search
@@ -400,7 +433,10 @@ src/
 assets/
   world-paths.js       bundled map geometry (generated)
 tools/                 asset generators + source data
-demo/                  demo pages (index.html, dist.html)
+demo/
+  index.html + demo.js + demo-data.js    full demo (dataset switching, table)
+  radio.html + radio.js + radio-data.js  radio stations: arrays of records per country
+  dist.html                              plain <script> bundle demo
 dist/                  prebuilt bundles
 ```
 

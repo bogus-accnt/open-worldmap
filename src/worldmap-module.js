@@ -81,6 +81,7 @@ export class WorldMapModule {
     this.options = { title, valueLabel, legend, panel, search, regionFilter, importExport, theme, scaleMode };
     this.store = store || new CountryStore({ storage: memoryAdapter() });
     this.colorBy = normalizeColorBy(colorBy);
+    this.colorBySpec = colorBy;
     this.palette = Array.isArray(colors) ? colors : PALETTES[colors] || SEQUENTIAL_BLUES;
     this.scaleMode = scaleMode;
     this.onSelect = onSelect;
@@ -89,6 +90,7 @@ export class WorldMapModule {
     this._scale = null;
     this._values = new Map();
     this._unsub = null;
+    this._warnedNoColors = false;
 
     this._build();
     this._unsub = this.store.subscribe(() => this._onStoreChange());
@@ -322,9 +324,11 @@ export class WorldMapModule {
   /** Recompute colors, legend and counters from the store. */
   refresh() {
     const values = [];
+    let withRecord = 0;
     this._values = new Map();
     for (const code of MAP_CODES) {
       const record = this.store.get(code);
+      if (record !== undefined) withRecord++;
       const value = record === undefined ? null : this.colorBy(record, code);
       this._values.set(code, value);
       if (value != null) values.push(value);
@@ -341,10 +345,30 @@ export class WorldMapModule {
       return v == null ? null : this._scale.color(v);
     });
 
+    this._warnIfNothingColored(values.length, withRecord);
     this._renderLegend();
     this.countEl.textContent = this.store.size === 1 ? "1 record" : `${this.store.size} records`;
     this._applyRegionDim();
     return this;
+  }
+
+  /**
+   * Warn once when `colorBy` resolves to nothing while records exist — the usual
+   * "the map is grey and clicks show no data" confusion.
+   */
+  _warnIfNothingColored(colored, withRecord) {
+    const broken = colored === 0 && withRecord > 0;
+    if (broken && !this._warnedNoColors) {
+      const spec = this.colorBySpec;
+      const what = typeof spec === "string" && spec ? `colorBy "${spec}"` : "the colorBy function";
+      console.warn(
+        `[worldmap-module] ${what} matched none of the ${withRecord} records, so every country ` +
+          'renders as "no record". Check the field name — and note that a string colorBy never ' +
+          "looks inside array records, which need a function, e.g. " +
+          "(r) => Array.isArray(r) ? r.length : null."
+      );
+    }
+    this._warnedNoColors = broken;
   }
 
   _renderLegend() {
@@ -425,6 +449,7 @@ export class WorldMapModule {
   /** Change what drives the choropleth colors. */
   setColorBy(colorBy, { colors, scaleMode } = {}) {
     this.colorBy = normalizeColorBy(colorBy);
+    this.colorBySpec = colorBy;
     if (colors) this.palette = Array.isArray(colors) ? colors : PALETTES[colors] || this.palette;
     if (scaleMode) this.scaleMode = scaleMode;
     return this.refresh();

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: MIT -->
+<!-- Copyright (c) 2026 open-worldmap contributors - https://github.com/bogus-accnt/open-worldmap -->
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>worldmap-module — radio stations example</title>
+<style>
+  :root {
+    --page-bg: #f5f7fa;
+    --page-fg: #1b1f24;
+    --page-muted: #6b7280;
+    --page-card: #ffffff;
+    --page-border: #e3e6ea;
+    --page-accent: #2f6fd0;
+  }
+  html[data-theme="dark"] {
+    --page-bg: #0d1014;
+    --page-fg: #e8eaed;
+    --page-muted: #9aa3ad;
+    --page-card: #14181d;
+    --page-border: #262c34;
+    --page-accent: #4f8fe6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    background: var(--page-bg); color: var(--page-fg);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 14px; margin-bottom: 16px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+  header p { margin: 0; color: var(--page-muted); font-size: 13px; }
+  .controls {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    margin-bottom: 14px; padding: 10px 12px;
+    background: var(--page-card); border: 1px solid var(--page-border); border-radius: 10px;
+  }
+  .controls label { font-size: 12px; color: var(--page-muted); display: flex; align-items: center; gap: 6px; }
+  select, button {
+    font: inherit; font-size: 13px; color: inherit;
+    background: var(--page-card); border: 1px solid var(--page-border);
+    border-radius: 6px; padding: 6px 9px; cursor: pointer;
+  }
+  button.primary { background: var(--page-accent); color: #fff; border-color: transparent; }
+  .spacer { flex: 1 1 auto; }
+  #selection, #stats { font-size: 12px; color: var(--page-muted); font-variant-numeric: tabular-nums; }
+  #map { height: 620px; }
+  section.stations { margin-top: 22px; }
+  section.stations h2 { font-size: 15px; margin: 0 0 8px; display: flex; gap: 8px; align-items: baseline; }
+  #row-count { font-size: 12px; color: var(--page-muted); font-weight: 400; }
+  .table-scroll { max-height: 360px; overflow: auto; border: 1px solid var(--page-border); border-radius: 10px; background: var(--page-card); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--page-border); }
+  th { position: sticky; top: 0; background: var(--page-card); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--page-muted); z-index: 1; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: color-mix(in srgb, var(--page-accent) 8%, transparent); }
+  tbody tr.is-selected { background: color-mix(in srgb, var(--page-accent) 14%, transparent); }
+  td.code { font-family: ui-monospace, Consolas, monospace; color: var(--page-muted); }
+  .pill { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11px; background: var(--page-border); color: var(--page-muted); }
+  .pill.ok { background: #dff3e4; color: #1f6b3a; }
+  .pill.bad { background: #fbe0df; color: #a5322d; }
+  html[data-theme="dark"] .pill.ok { background: #12301f; color: #7fd39b; }
+  html[data-theme="dark"] .pill.bad { background: #34191a; color: #e79b98; }
+  pre {
+    margin-top: 22px; padding: 14px 16px; overflow: auto;
+    background: var(--page-card); border: 1px solid var(--page-border); border-radius: 10px;
+    font-family: ui-monospace, Consolas, monospace; font-size: 12px; line-height: 1.55;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Radio stations by country</h1>
+    <p>Each country holds an array of stations. The map is shaded by the selected metric —
+       click a country to see its record in the panel on the right and to filter the table.</p>
+  </header>
+
+  <div class="controls">
+    <label>Colour by
+      <select id="metric">
+        <option value="count">Stations (count)</option>
+        <option value="working">Working stations</option>
+        <option value="broken">Not working</option>
+        <option value="share">Working share (%)</option>
+      </select>
+    </label>
+    <label>Topic
+      <select id="topic"><option value="all">All topics</option></select>
+    </label>
+    <label>Status
+      <select id="status">
+        <option value="all">All</option>
+        <option value="true">Working</option>
+        <option value="false">Not working</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="theme" /> Dark theme</label>
+    <button id="clear" class="primary">Clear selection</button>
+    <span class="spacer"></span>
+    <span id="stats"></span>
+    <span id="selection">Nothing selected</span>
+  </div>
+
+  <div id="map"></div>
+
+  <section class="stations">
+    <h2>Stations <span id="row-count"></span></h2>
+    <div class="table-scroll">
+      <table id="stations-table">
+        <thead>
+          <tr><th>Country</th><th>ID</th><th>Name</th><th>Topic</th><th>Status</th><th>Last checked</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <pre id="snippet"></pre>
+</div>
+
+<script type="module" src="./radio.js"></script>
+</body>
+</html>

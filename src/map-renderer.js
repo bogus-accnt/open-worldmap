@@ -102,17 +102,38 @@ export class MapRenderer {
     this._listen(this.svg, "pointerdown", (evt) => {
       if (evt.button !== undefined && evt.button !== 0) return;
       this._cancelAnim();
-      this._drag = { id: evt.pointerId, x: evt.clientX, y: evt.clientY, moved: false };
-      this.svg.setPointerCapture(evt.pointerId);
+      // NOTE: the pointer is deliberately not captured yet. Capturing on
+      // pointerdown retargets the `click` that follows to the <svg>, so a plain
+      // click on a country never reaches the path and looks like "no selection".
+      // Capture only once a real drag has started (see pointermove below).
+      this._drag = {
+        id: evt.pointerId,
+        startX: evt.clientX,
+        startY: evt.clientY,
+        x: evt.clientX,
+        y: evt.clientY,
+        moved: false,
+        captured: false,
+      };
       this.svg.classList.add("wm-grabbing");
     });
     this._listen(this.svg, "pointermove", (evt) => {
       const d = this._drag;
       if (!d || d.id !== evt.pointerId) return;
+      if (!d.moved) {
+        // Ignore a shaky click: only pan once the pointer has actually moved.
+        if (Math.abs(evt.clientX - d.startX) + Math.abs(evt.clientY - d.startY) <= 3) return;
+        d.moved = true;
+        try {
+          this.svg.setPointerCapture(evt.pointerId);
+          d.captured = true;
+        } catch {
+          /* pointer already gone — panning still works while inside the svg */
+        }
+      }
       const rect = this.svg.getBoundingClientRect();
       const dx = ((evt.clientX - d.x) / rect.width) * this.width;
       const dy = ((evt.clientY - d.y) / rect.height) * this.height;
-      if (Math.abs(evt.clientX - d.x) + Math.abs(evt.clientY - d.y) > 3) d.moved = true;
       d.x = evt.clientX;
       d.y = evt.clientY;
       this.tx += dx;
@@ -126,16 +147,31 @@ export class MapRenderer {
       this._suppressClick = d.moved; // swallow the click that follows a pan
       this._drag = null;
       this.svg.classList.remove("wm-grabbing");
-      try { this.svg.releasePointerCapture(evt.pointerId); } catch { /* already released */ }
+      if (d.captured) {
+        try { this.svg.releasePointerCapture(evt.pointerId); } catch { /* already released */ }
+      }
       setTimeout(() => { this._suppressClick = false; }, 0);
     };
     this._listen(this.svg, "pointerup", endDrag);
     this._listen(this.svg, "pointercancel", endDrag);
+    // Safety net: a pointerdown with no drag can be released outside the svg
+    // (nothing was captured), which would otherwise leave the drag state behind.
+    this._listen(document, "pointerup", endDrag);
+    this._listen(document, "pointercancel", endDrag);
   }
 
   _codeAt(evt) {
-    const el = evt.target && evt.target.closest ? evt.target.closest("path[data-code]") : null;
-    return el ? el.getAttribute("data-code") : null;
+    const target = evt.target;
+    const direct = target && target.closest ? target.closest("path[data-code]") : null;
+    if (direct) return direct.getAttribute("data-code");
+    // Pointer capture (or any element overlaying the map) can retarget the event
+    // to the <svg>; hit-test the actual point under the cursor as a fallback.
+    if (typeof evt.clientX === "number" && typeof document !== "undefined" && document.elementFromPoint) {
+      const under = document.elementFromPoint(evt.clientX, evt.clientY);
+      const path = under && under.closest ? under.closest("path[data-code]") : null;
+      if (path) return path.getAttribute("data-code");
+    }
+    return null;
   }
 
   // --- Transform ---------------------------------------------------------
