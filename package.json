@@ -1,0 +1,22 @@
+{
+  "name": "worldmap-module",
+  "version": "1.0.0",
+  "description": "Embeddable JavaScript widget that organizes arbitrary JSON data by country on an interactive world map.",
+  "type": "module",
+  "main": "src/index.js",
+  "module": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./styles.css": "./src/styles.js"
+  },
+  "files": ["src", "assets", "dist"],
+  "scripts": {
+    "build": "npx --yes esbuild@0.25.10 src/index.js --bundle --format=iife --target=es2020 --outfile=dist/worldmap.js && npx --yes esbuild@0.25.10 src/index.js --bundle --format=iife --minify --target=es2020 --outfile=dist/worldmap.min.js",
+    "build:map": "node tools/generate-map.mjs",
+    "check:map": "node tools/check-map.mjs",
+    "build:db": "node tools/generate-db.mjs",
+    "serve": "python -m http.server 8123"
+  },
+  "keywords": ["world-map", "countries", "choropleth", "iso-3166", "data-visualization", "widget"],
+  "license": "MIT"
+}

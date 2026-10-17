@@ -1,0 +1,3 @@
+# Store text as LF in the repository so the sources, generated assets and
+# bundles are byte-identical on every platform.
+* text=auto eol=lf

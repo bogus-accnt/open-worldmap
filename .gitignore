@@ -1,0 +1,9 @@
+# dependencies (only ever used by the optional npx/esbuild build)
+node_modules/
+
+# logs and editor/OS noise
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

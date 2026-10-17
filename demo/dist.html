@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>worldmap-module — dist bundle demo</title>
+<style>
+  body { margin: 0; padding: 24px; background: #f5f7fa; color: #1b1f24; font-family: system-ui, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p { margin: 0 0 16px; color: #6b7280; font-size: 13px; }
+  #map { height: 560px; }
+  pre { margin-top: 18px; padding: 14px 16px; background: #fff; border: 1px solid #e3e6ea; border-radius: 10px; font-size: 12px; overflow: auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>dist bundle — no modules required</h1>
+  <p>This page loads <code>../dist/worldmap.min.js</code> with a plain &lt;script&gt; tag and uses <code>window.WorldMap</code>.</p>
+  <div id="map"></div>
+  <pre id="snippet"></pre>
+</div>
+
+<script src="../dist/worldmap.min.js"></script>
+<script>
+  const { WorldMapModule, CountryStore, memoryAdapter } = window.WorldMap;
+
+  const store = new CountryStore({
+    storage: memoryAdapter(),
+    initialData: {
+      US: { revenue: 48200000 },
+      CA: { revenue: 5100000 },
+      BR: { revenue: 5400000 },
+      GB: { revenue: 10400000 },
+      FR: { revenue: 8900000 },
+      DE: { revenue: 11800000 },
+      ES: { revenue: 3700000 },
+      IT: { revenue: 4300000 },
+      NG: { revenue: 140000 },
+      ZA: { revenue: 1500000 },
+      IN: { revenue: 8100000 },
+      CN: { revenue: 31400000 },
+      JP: { revenue: 12300000 },
+      KR: { revenue: 3100000 },
+      AU: { revenue: 4900000 },
+      NZ: { revenue: 390000 },
+    },
+  });
+
+  const map = new WorldMapModule({
+    el: "#map",
+    store,
+    colorBy: "revenue",
+    colors: "greens",
+    scaleMode: "linear",
+    valueLabel: "Revenue (USD)",
+    title: "Revenue by country",
+  });
+
+  document.getElementById("snippet").textContent = [
+    '<script src="dist/worldmap.min.js"><\/script>',
+    "<script>",
+    "  const { WorldMapModule, CountryStore } = window.WorldMap;",
+    "  const store = new CountryStore({ storage: memoryAdapter() });",
+    "  store.importJSON({ records: { US: { revenue: 48200000 } } });",
+    "  new WorldMapModule({ el: '#map', store, colorBy: 'revenue', valueLabel: 'Revenue' });",
+    "<\/script>",
+  ].join("\n");
+</script>
+</body>
+</html>
